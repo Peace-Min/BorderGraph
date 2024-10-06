@@ -1,48 +1,36 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
 
 namespace WpfApp5
 {
-    /// <summary>
-    /// MainWindow.xaml에 대한 상호 작용 논리
-    /// </summary>
     public class Range
     {
         public double Start { get; set; }
         public double End { get; set; }
     }
+
     public partial class MainWindow : Window
     {
         public List<Range> RangeList;
-
-        public MainWindow()
+        public MainWindow() 
         {
-            InitializeComponent();
-
-            // Sample ranges with overlap
-            RangeList = new List<Range>()
-            {
-                new Range() { Start = 6000, End = 8000}, // Example of partial range
-                new Range() { Start = 10000, End = 0},
-                new Range() { Start = 0, End = 0 },
+            RangeList = new List<Range> 
+            { 
+                new Range(){ Start = 6000, End=9000},
+                new Range(){ Start = 8000, End=14000},
+                new Range(){ Start = 10000, End=18000},
             };
 
             // Call UpdateBorders after the window is fully loaded to ensure the Canvas dimensions are available
             this.Loaded += MainWindow_Loaded;
         }
 
+        // Modify the constructor to accept List<Range> as a parameter
         public MainWindow(List<Range> ranges)
         {
             InitializeComponent();
@@ -61,22 +49,22 @@ namespace WpfApp5
 
         private void UpdateBorders()
         {
-            // Define column ranges
-            CheckRangeOverlap(Canvas0, 6000, 8000); // 2000-4000
-            CheckRangeOverlap(Canvas1, 8000, 10000); // 4000-6000
-            CheckRangeOverlap(Canvas2, 10000, 12000); // 6000-8000
-            CheckRangeOverlap(Canvas3, 12000, 14000); // 8000-10000
-            CheckRangeOverlap(Canvas4, 14000, 16000); // 10000-12000
-            CheckRangeOverlap(Canvas5, 16000, 18000); // 12000-14000
+            // Define column ranges within 6000 to 18000 range
+            CheckRangeOverlap(Canvas0, 6000, 8000); // 6000-8000
+            CheckRangeOverlap(Canvas1, 8000, 10000); // 8000-10000
+            CheckRangeOverlap(Canvas2, 10000, 12000); // 10000-12000
+            CheckRangeOverlap(Canvas3, 12000, 14000); // 12000-14000
+            CheckRangeOverlap(Canvas4, 14000, 16000); // 14000-16000
+            CheckRangeOverlap(Canvas5, 16000, 18000); // 16000-18000
         }
 
         private void CheckRangeOverlap(Canvas canvas, double rangeStart, double rangeEnd)
         {
-            canvas.Children.Clear(); // Clear any previous rectangles
+            canvas.Children.Clear(); // 이전의 사각형 지우기
 
             List<Range> overlappingRanges = new List<Range>();
 
-            // Add all ranges that overlap with the current range (rangeStart to rangeEnd)
+            // 현재 범위(rangeStart, rangeEnd)와 겹치는 범위를 추가
             foreach (var range in RangeList)
             {
                 if (range.End > rangeStart && range.Start < rangeEnd)
@@ -89,52 +77,56 @@ namespace WpfApp5
                 }
             }
 
-            // Step 1: Sort ranges by Start position to handle overlaps properly
-            overlappingRanges = overlappingRanges.OrderBy(r => r.Start).ToList();
+            // 겹치는 구간 순서대로 처리
+            double currentPos = rangeStart;
 
-            // Step 2: Loop through the ranges and check for overlaps
-            double lastEnd = rangeStart;
             foreach (var currentRange in overlappingRanges)
             {
-                // If there is a gap between the last processed end and the current range start, fill it with the default color (black)
-                if (currentRange.Start > lastEnd)
+                // 공백이 있는 경우 검은색으로 채우기
+                if (currentRange.Start > currentPos)
                 {
-                    DrawRectangle(canvas, lastEnd, currentRange.Start, rangeStart, rangeEnd, Colors.Black);
+                    DrawRectangle(canvas, currentPos, currentRange.Start, rangeStart, rangeEnd, Colors.Black);
                 }
 
-                // Check if the current range overlaps with any other range
-                var overlapRanges = overlappingRanges.Where(r => r != currentRange && r.Start < currentRange.End && r.End > currentRange.Start).ToList();
+                // 중첩된 범위가 있는지 확인 (중첩되는 경우)
+                var overlapRanges = overlappingRanges
+                    .Where(r => r != currentRange && r.Start < currentRange.End && r.End > currentRange.Start)
+                    .ToList();
+
+                double overlapEnd = currentRange.End;
 
                 if (overlapRanges.Count > 0)
                 {
-                    // There is overlap, color the overlapping section purple
+                    // 중첩된 부분을 먼저 보라색으로 채우고 나머지를 파란색으로 채우기
                     foreach (var overlapRange in overlapRanges)
                     {
                         double overlapStart = Math.Max(currentRange.Start, overlapRange.Start);
-                        double overlapEnd = Math.Min(currentRange.End, overlapRange.End);
+                        overlapEnd = Math.Min(currentRange.End, overlapRange.End);
 
+                        // 중첩된 부분 보라색으로 채우기
                         DrawRectangle(canvas, overlapStart, overlapEnd, rangeStart, rangeEnd, Colors.Purple);
+                    }
 
-                        // Adjust the current range to avoid recoloring the same section
-                        if (overlapStart > currentRange.Start)
-                        {
-                            DrawRectangle(canvas, currentRange.Start, overlapStart, rangeStart, rangeEnd, Colors.Blue);
-                        }
-                        lastEnd = overlapEnd;
+                    // 남은 부분이 있다면 파란색으로 채우기
+                    if (overlapEnd < currentRange.End)
+                    {
+                        DrawRectangle(canvas, overlapEnd, currentRange.End, rangeStart, rangeEnd, Colors.Blue);
                     }
                 }
                 else
                 {
-                    // No overlap, draw the range in blue
+                    // 중첩이 없을 때는 파란색으로 채우기
                     DrawRectangle(canvas, currentRange.Start, currentRange.End, rangeStart, rangeEnd, Colors.Blue);
-                    lastEnd = currentRange.End;
                 }
+
+                // 현재 범위 끝 지점 업데이트
+                currentPos = currentRange.End;
             }
 
-            // Fill the remaining part after the last range with the default color (black)
-            if (lastEnd < rangeEnd)
+            // 마지막 범위 이후에 남은 부분이 있으면 검은색으로 채우기
+            if (currentPos < rangeEnd)
             {
-                DrawRectangle(canvas, lastEnd, rangeEnd, rangeStart, rangeEnd, Colors.Black);
+                DrawRectangle(canvas, currentPos, rangeEnd, rangeStart, rangeEnd, Colors.Black);
             }
         }
 
